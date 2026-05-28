@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Load More</title>
+</head>
+<body>
+    <button id="load-more-btn" data-next-page="2" data-url="/books">Load More Books</button>
+    <div id="loading-spinner" class="d-none">Loading...</div>
+    <div class="row">
+        <div class="col-md-6">Book 1</div>
+        <div class="col-md-6">Book 2</div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('DOM loaded, looking for load-more-btn');
+        const loadMoreBtn = document.getElementById('load-more-btn');
+        console.log('loadMoreBtn:', loadMoreBtn);
+
+        if (loadMoreBtn) {
+            console.log('Adding event listener to load-more-btn');
+            loadMoreBtn.addEventListener('click', function() {
+                alert('Button clicked!'); // Simple test
+                console.log('Load More button clicked!');
+            });
+        } else {
+            console.log('Load More button not found!');
+        }
+    });
+    </script>
+</body>
+</html>
