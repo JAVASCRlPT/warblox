@@ -130,6 +130,7 @@
                             <th>Judul eBook</th>
                             <th>Qty</th>
                             <th>Total Bayar</th>
+                            <th>Tanggal Pembelian</th>
                             <th>Invoice</th>
                             <th>Aksi</th>
                         </tr>
@@ -140,6 +141,15 @@
                                 <td>{{ $purchase->book->title }}</td>
                                 <td>{{ max((int) $purchase->qty, 1) }}</td>
                                 <td>Rp {{ number_format($purchase->amount, 0, ',', '.') }}</td>
+                                <td>
+                                    @if($purchase->updated_at)
+                                        {{ $purchase->updated_at->format('d-m-Y') }}
+                                    @elseif($purchase->created_at)
+                                        {{ $purchase->created_at->format('d-m-Y') }}
+                                    @else
+                                        -
+                                    @endif
+                                </td>
                                 <td><small>{{ $purchase->invoice_code }}</small></td>
                                 <td>
                                     <a href="{{ route('ebook.download', ['book' => $purchase->book, 'download' => 1]) }}" class="btn btn-sm btn-success">

@@ -57,7 +57,7 @@
                             <p><strong>Total Bayar:</strong> Rp {{ number_format($pendingTransactions->sum('amount') + $checkoutFee, 0, ',', '.') }}</p>
                             <p><strong>Checkout ID:</strong> {{ $checkoutId }}</p>
                             <div class="text-center mt-3">
-                                <a href="{{ $whatsappUrl }}" target="_blank" class="btn btn-success btn-lg">
+                                <a href="{{ route('ebook.request-confirmation', $checkoutId) }}" target="_blank" class="btn btn-success btn-lg">
                                     <i class="bi bi-whatsapp"></i> Konfirmasi Pembayaran via WhatsApp
                                 </a>
                             </div>

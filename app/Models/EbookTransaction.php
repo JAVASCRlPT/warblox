@@ -15,6 +15,7 @@ class EbookTransaction extends Model
         'checkout_id',
         'qr_code',
         'payment_method',
+        'confirmation_requested',
         'admin_fee',
         'amount',
         'qty',
@@ -25,6 +26,7 @@ class EbookTransaction extends Model
     protected $casts = [
         'amount' => 'decimal:2',
         'admin_fee' => 'integer',
+        'confirmation_requested' => 'boolean',
         'qty' => 'integer',
         'expires_at' => 'datetime',
     ];

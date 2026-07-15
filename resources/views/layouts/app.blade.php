@@ -6,55 +6,113 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title') - Perpustakaan Kampus Merdeka</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
     <style>
         :root {
-            --primary-color: #2c3e50;
-            --secondary-color: #3498db;
+            --primary-color: #1565c0; /* Material Blue 700 */
+            --secondary-color: #0288d1; /* Material Light Blue 600 */
+            --surface: #ffffff;
+            --on-surface: #263238;
+            --elevation-1: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
             --sidebar-width: 250px;
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Roboto', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: #f8f9fa;
             padding-top: 56px; /* Add padding for fixed navbar height */
         }
 
         .navbar {
-            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            background: linear-gradient(90deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            box-shadow: var(--elevation-1);
             position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
+            top: 10px;
+            left: 16px;
+            right: 16px;
             z-index: 1030;
-            transition: all 0.3s ease;
-            width: 100%;
+            transition: all 0.22s cubic-bezier(.4,0,.2,1);
+            width: calc(100% - 32px);
+            border-radius: 12px;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            padding: 0 18px;
         }
 
         .navbar.scrolled {
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            backdrop-filter: blur(10px);
-            background: rgba(44, 62, 80, 0.95) !important;
-            transform: translateY(0);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+            backdrop-filter: blur(6px);
+            transform: translateY(-2px);
         }
 
         .navbar-brand {
-            font-weight: bold;
-            font-size: 1.5rem;
-            letter-spacing: 0.5px;
-            transition: all 0.3s ease;
+            font-weight: 500;
+            font-size: 1.1rem;
+            letter-spacing: 0.2px;
+            transition: all 0.2s ease;
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .navbar-brand .brand-icon {
+            height: 40px;
+            width: 40px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255,255,255,0.12);
+            color: white;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+            font-size: 20px;
         }
 
         .navbar.scrolled .navbar-brand {
             font-size: 1.4rem;
         }
 
-        .navbar-brand {
-            font-weight: bold;
-            font-size: 1.5rem;
-            letter-spacing: 0.5px;
+        .navbar .nav-link {
+            color: rgba(255,255,255,0.95);
+            padding: 8px 12px;
+            border-radius: 8px;
+            transition: background 0.18s ease, transform 0.12s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 500;
+        }
+
+        .navbar .nav-link:hover {
+            background: rgba(255,255,255,0.08);
+            transform: translateY(-1px);
+            text-decoration: none;
+        }
+
+        .nav-icon-btn {
+            height: 40px;
+            width: 40px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.06);
+            color: white;
+            transition: background 0.18s ease, transform 0.12s ease;
+        }
+
+        .nav-icon-btn:hover { background: rgba(255,255,255,0.14); transform: translateY(-2px); }
+
+        .badge-material {
+            background: #ff5252;
+            color: white;
+            font-weight: 600;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.12);
         }
 
         .admin-container {
@@ -245,10 +303,12 @@
         }
 
         .cart-dropdown-menu {
-            width: 360px;
+            width: 380px;
             max-width: calc(100vw - 24px);
             border: none;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+            border-radius: 12px;
+            overflow: hidden;
         }
 
         .cart-item-title {
@@ -267,7 +327,6 @@
                 margin-left: -var(--sidebar-width);
                 z-index: 999;
             }
-
             .main-content {
                 margin-left: 0;
                 padding: 15px;
@@ -277,6 +336,67 @@
                 width: var(--sidebar-width);
                 margin-left: 0;
             }
+
+            .navbar {
+                left: 8px;
+                right: 8px;
+                width: calc(100% - 16px);
+                height: 56px;
+                padding: 0 12px;
+                border-radius: 8px;
+            }
+
+            .navbar-toggler {
+                border: none;
+                background: rgba(255,255,255,0.06);
+                color: white;
+                width: 44px;
+                height: 44px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                border-radius: 8px;
+                box-shadow: none;
+            }
+
+            .navbar-toggler .material-icons {
+                font-size: 22px;
+                line-height: 1;
+            }
+
+            .navbar {
+                top: 8px;
+            }
+
+            body { padding-top: 80px; }
+
+            /* Ensure collapsed menu appears below navbar and is full width */
+            .navbar-collapse {
+                position: absolute;
+                top: 72px;
+                left: 0;
+                right: 0;
+                background: linear-gradient(90deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+                padding: 12px 16px;
+                border-radius: 0 0 12px 12px;
+                z-index: 1040;
+            }
+
+            .navbar .navbar-nav {
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .cart-dropdown-menu {
+                width: calc(100% - 32px);
+                right: 16px;
+                left: 16px;
+            }
+
+            /* Move hamburger to right and center brand */
+            .navbar .container-fluid { position: relative; }
+            .navbar-toggler { position: absolute; right: 12px; top: 10px; z-index: 1050; }
+            .navbar-brand { margin: 0 auto; padding-right: 56px; }
         }
     </style>
     @stack('styles')
@@ -286,10 +406,11 @@
     <nav class="navbar navbar-expand-lg navbar-dark">
         <div class="container-fluid">
             <a class="navbar-brand" href="{{ route('books.index') }}">
-                <i class="bi bi-book"></i> Perpustakaan Kampus Merdeka
+                <span class="brand-icon"><i class="material-icons">menu_book</i></span>
+                <span>Perpustakaan Kampus Merdeka</span>
             </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="material-icons">menu</span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto">

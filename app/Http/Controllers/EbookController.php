@@ -367,6 +367,101 @@ class EbookController extends Controller
             ->with('success', 'Pembayaran berhasil dikonfirmasi. Lihat Riwayat Pembelian eBook untuk download.');
     }
 
+    /**
+     * Admin approves ebook checkout (marks all transactions in checkout as paid)
+     */
+    public function adminApproveCheckout(string $checkoutId): RedirectResponse
+    {
+        if (! auth()->user() || ! auth()->user()->isAdmin()) {
+            abort(403);
+        }
+
+        $transactions = EbookTransaction::with('book', 'user')
+            ->where('checkout_id', $checkoutId)
+            ->where('status', 'pending')
+            ->get();
+
+        if ($transactions->isEmpty()) {
+            return redirect()->back()->with('error', 'Transaksi tidak ditemukan atau sudah diproses.');
+        }
+
+        $transactions->each(function (EbookTransaction $t) {
+            $t->update(['status' => 'paid']);
+        });
+
+        // remove items from buyer cart
+        $userId = $transactions->first()->user_id;
+        $bookIds = $transactions->pluck('book_id')->filter()->all();
+        if (! empty($bookIds)) {
+            \App\Models\Cart::where('user_id', $userId)->whereIn('book_id', $bookIds)->delete();
+        }
+
+        return redirect()->back()->with('success', 'Checkout berhasil disetujui dan transaksi ditandai lunas.');
+    }
+
+    /**
+     * Admin rejects ebook checkout (marks as rejected)
+     */
+    public function adminRejectCheckout(string $checkoutId): RedirectResponse
+    {
+        if (! auth()->user() || ! auth()->user()->isAdmin()) {
+            abort(403);
+        }
+
+        $transactions = EbookTransaction::where('checkout_id', $checkoutId)
+            ->where('status', 'pending')
+            ->get();
+
+        if ($transactions->isEmpty()) {
+            return redirect()->back()->with('error', 'Transaksi tidak ditemukan atau sudah diproses.');
+        }
+
+        $transactions->each(fn ($t) => $t->update(['status' => 'rejected']));
+
+        return redirect()->back()->with('success', 'Checkout ditolak.');
+    }
+
+    /**
+     * Called when a buyer clicks confirm via WhatsApp: mark confirmation_requested and redirect to wa.me
+     */
+    public function requestPaymentConfirmation(string $checkoutId)
+    {
+        if (! auth()->check()) {
+            return redirect()->route('login');
+        }
+
+        $transactions = EbookTransaction::with('book')
+            ->where('user_id', auth()->id())
+            ->where('checkout_id', $checkoutId)
+            ->where('status', 'pending')
+            ->get();
+
+        if ($transactions->isEmpty()) {
+            return redirect()->route('ebook.checkout')->with('error', 'Transaksi tidak ditemukan atau sudah diproses.');
+        }
+
+        $transactions->each(function ($t) {
+            $t->update(['confirmation_requested' => true]);
+        });
+
+        $paymentMethod = $transactions->first()->payment_method ?? 'DANA';
+        $checkoutFee = $transactions->first()->admin_fee ?? 0;
+        $totalAmount = $transactions->sum('amount') + $checkoutFee;
+
+        $bookLines = $transactions->map(fn ($transaction, $index) => sprintf("%d. %s (Qty %d)", $index + 1, $transaction->book->title, $transaction->qty))->implode("\n");
+        $message = "Halo Admin, saya ingin konfirmasi pembayaran eBook.\n" .
+            "Metode Pembayaran: {$paymentMethod}\n" .
+            "Biaya Admin: Rp " . number_format($checkoutFee, 0, ',', '.') . "\n" .
+            "Total Pembayaran: Rp " . number_format($totalAmount, 0, ',', '.') . "\n" .
+            "Checkout ID: {$checkoutId}\n" .
+            "Buku:\n{$bookLines}\n" .
+            "Terima kasih.";
+
+        $wa = 'https://wa.me/6283899912346?text=' . rawurlencode($message);
+
+        return redirect()->away($wa);
+    }
+
     public function refreshCheckoutQr(string $checkoutId): JsonResponse
     {
         $transactions = EbookTransaction::with('book')

@@ -79,6 +79,14 @@ class DashboardController extends Controller
             ->take(5)
             ->get();
 
+        // Pending ebook purchase confirmations
+        $pendingEbooks = EbookTransaction::with(['user', 'book'])
+            ->where('status', 'pending')
+            ->where('confirmation_requested', true)
+            ->latest()
+            ->take(10)
+            ->get();
+
         // Pending borrow requests grouped by user
         $pendingBorrows = Transaction::with(['user', 'book'])
             ->where('status', 'pending_borrow')
@@ -86,7 +94,7 @@ class DashboardController extends Controller
             ->get()
             ->groupBy('user_id');
 
-        return view('admin.dashboard', compact('stats', 'recentTransactions', 'lowStockBooks', 'pendingReturns', 'pendingBorrows'));
+        return view('admin.dashboard', compact('stats', 'recentTransactions', 'lowStockBooks', 'pendingReturns', 'pendingBorrows', 'pendingEbooks'));
     }
 
     /**

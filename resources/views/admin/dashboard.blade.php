@@ -167,6 +167,56 @@
                         </td>
                     </tr>
                     @endforeach
+                        <!-- Pending eBook Purchase Confirmations -->
+                        @if(!empty($pendingEbooks) && $pendingEbooks->isNotEmpty())
+                            @php
+                                $ebookGroups = $pendingEbooks->groupBy('checkout_id');
+                            @endphp
+                            @foreach($ebookGroups as $checkoutId => $group)
+                            @php
+                                $first = $group->first();
+                                $buyer = $first->user;
+                            @endphp
+                            <tr>
+                                <td>
+                                    <strong>{{ $buyer->name }}</strong><br>
+                                    <small class="text-muted">{{ $buyer->nim ?? '-' }}</small>
+                                </td>
+                                <td colspan="3" class="fw-bold text-primary">
+                                    <i class="bi bi-book"></i> Permintaan Pembelian eBook
+                                    <div class="mt-2">
+                                        <form method="POST" action="{{ route('admin.ebook.approve', $checkoutId) }}" style="display:inline">
+                                            @csrf
+                                            <button type="submit" class="btn btn-sm btn-success me-2">
+                                                <i class="bi bi-check-circle-fill"></i> Setujui
+                                            </button>
+                                        </form>
+                                        <form method="POST" action="{{ route('admin.ebook.reject', $checkoutId) }}" style="display:inline">
+                                            @csrf
+                                            <button type="submit" class="btn btn-sm btn-outline-danger me-2">
+                                                <i class="bi bi-x-circle-fill"></i> Tolak
+                                            </button>
+                                        </form>
+                                        <button type="button" class="btn btn-sm btn-outline-info" onclick="toggleEbookDetails('{{ $checkoutId }}')">
+                                            <i class="bi bi-eye" id="icon-ebook-{{ $checkoutId }}"></i> Detail eBook
+                                        </button>
+                                    </div>
+                                </td>
+                                <td></td>
+                            </tr>
+                            @foreach($group as $t)
+                            <tr class="ebook-detail-row" id="ebook-row-{{ $t->id }}" data-checkout-id="{{ $checkoutId }}" style="display:none;">
+                                <td></td>
+                                <td>{{ $t->book->title }}</td>
+                                <td><span class="badge bg-secondary">Pembelian</span></td>
+                                <td>
+                                    Rp {{ number_format($t->amount, 0, ',', '.') }}
+                                </td>
+                                <td></td>
+                            </tr>
+                            @endforeach
+                            @endforeach
+                        @endif
                 </tbody>
             </table>
         </div>
@@ -949,6 +999,27 @@ function toggleBookDetails(userId) {
             row.style.display = 'table-row';
         });
         icon.className = 'bi bi-eye-slash';
+    }
+}
+
+// Toggle ebook purchase detail rows
+function toggleEbookDetails(checkoutId) {
+    const rows = document.querySelectorAll(`tr.ebook-detail-row[data-checkout-id="${checkoutId}"]`);
+    const icon = document.getElementById(`icon-ebook-${checkoutId}`);
+    let isVisible = false;
+
+    rows.forEach(row => {
+        if (row.style.display !== 'none') {
+            isVisible = true;
+        }
+    });
+
+    if (isVisible) {
+        rows.forEach(row => row.style.display = 'none');
+        if (icon) icon.className = 'bi bi-eye';
+    } else {
+        rows.forEach(row => row.style.display = 'table-row');
+        if (icon) icon.className = 'bi bi-eye-slash';
     }
 }
 </script>

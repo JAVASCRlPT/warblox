@@ -39,6 +39,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/ebook/checkout', [EbookController::class, 'checkout'])->name('ebook.checkout');
     Route::post('/ebook/checkout', [EbookController::class, 'processCheckout'])->name('ebook.checkout.process');
     Route::post('/ebook/confirm/{checkoutId}', [EbookController::class, 'confirmPayment'])->name('ebook.confirm');
+    Route::get('/ebook/request-confirmation/{checkoutId}', [EbookController::class, 'requestPaymentConfirmation'])->name('ebook.request-confirmation');
     Route::get('/ebook/download/{book}', [EbookController::class, 'download'])->name('ebook.download');
     Route::get('/transactions', [TransactionController::class, 'history'])->name('transactions.history');
     Route::post('/transactions/{transaction}/return', [TransactionController::class, 'return'])->name('transactions.return');
@@ -85,6 +86,10 @@ Route::prefix('admin')
         Route::get('/users/{user}/edit', [AdminUserController::class, 'edit'])->name('admin.users.edit');
         Route::put('/users/{user}', [AdminUserController::class, 'update'])->name('admin.users.update');
         Route::delete('/users/{user}', [AdminUserController::class, 'destroy'])->name('admin.users.destroy');
+        
+        // eBook purchase confirmations (admin)
+        Route::post('/ebook/approve/{checkoutId}', [EbookController::class, 'adminApproveCheckout'])->name('admin.ebook.approve');
+        Route::post('/ebook/reject/{checkoutId}', [EbookController::class, 'adminRejectCheckout'])->name('admin.ebook.reject');
 });
 
 // Authentication routes (Laravel Breeze or default)
