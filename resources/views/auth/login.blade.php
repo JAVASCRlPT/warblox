@@ -7,7 +7,7 @@
     <div class="card shadow-lg">
         <div class="card-body p-5">
             <div class="text-center mb-4">
-                <h2 class="card-title" style="color: #2c3e50;">Login Perpustakaan v.2.1</h2>
+                <h2 class="card-title" style="color: #2c3e50;">Login Perpustakaan v.2.2</h2>
                 <p class="text-muted">Masukkan email dan password Anda</p>
             </div>
 
