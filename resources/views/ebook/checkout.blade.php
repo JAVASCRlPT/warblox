@@ -5,7 +5,7 @@
 @section('content')
 <div class="page-header">
     <h1><i class="bi bi-credit-card"></i> Checkout eBook</h1>
-    <p class="text-muted mb-0">Bayar semua eBook di keranjang Anda dalam satu QRIS.</p>
+    <p class="text-muted mb-0">Pilih metode pembayaran, lalu konfirmasi pembayaran melalui WhatsApp.</p>
 </div>
 
 <div class="row">
@@ -22,7 +22,7 @@
                     <h5 class="mb-3">Rincian Checkout</h5>
                     @if($pendingTransactions->isNotEmpty())
                         <div class="alert alert-warning">
-                            <strong>Transaksi Pending:</strong> Silakan selesaikan pembayaran dengan QRIS di bawah.
+                            <strong>Transaksi Pending:</strong> Silakan selesaikan pembayaran melalui WhatsApp.
                         </div>
                         <table class="table table-borderless mb-3">
                             <tbody>
@@ -35,21 +35,33 @@
                                 @endforeach
                             </tbody>
                         </table>
-                        <div class="text-center mb-3">
-                            <img id="checkout-qr-image" src="{{ asset('storage/' . $pendingTransactions->first()->qr_code) }}" alt="QR Code Checkout" class="img-fluid" style="max-width: 320px;">
-                        </div>
-                        <p class="text-center mb-2">
-                            <strong>Sisa Waktu QR:</strong>
-                            <span id="qris-timer" class="badge bg-dark">05:00</span>
-                        </p>
-                        <p><strong>Invoice Group:</strong> {{ $checkoutId }}</p>
-                        <p><strong>Total:</strong> Rp {{ number_format($pendingTransactions->sum('amount'), 0, ',', '.') }}</p>
-                        <form method="POST" action="{{ route('ebook.confirm', $checkoutId) }}">
+                        <p><strong>Metode Pembayaran:</strong></p>
+                        <form method="POST" action="{{ route('ebook.checkout.process') }}">
                             @csrf
-                            <button type="submit" class="btn btn-primary">
-                                <i class="bi bi-check-circle"></i> Konfirmasi Pembayaran
-                            </button>
+                            <input type="hidden" name="checkout_id" value="{{ $checkoutId }}">
+                            <div class="mb-3">
+                                <select id="payment_method" name="payment_method" class="form-select" required>
+                                    <option value="" disabled selected>Pilih Metode Pembayaran</option>
+                                    <option value="DANA">DANA</option>
+                                    <option value="Gopay">Gopay</option>
+                                    <option value="ShopeePay">ShopeePay</option>
+                                    <option value="Transfer Bank">Transfer Bank</option>
+                                    <option value="QRIS">QRIS</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Simpan Metode Pembayaran</button>
                         </form>
+                        @if($paymentMethod)
+                            <p><strong>Biaya Admin:</strong> Rp {{ number_format($checkoutFee, 0, ',', '.') }}</p>
+                            <p><strong>Subtotal:</strong> Rp {{ number_format($pendingTransactions->sum('amount'), 0, ',', '.') }}</p>
+                            <p><strong>Total Bayar:</strong> Rp {{ number_format($pendingTransactions->sum('amount') + $checkoutFee, 0, ',', '.') }}</p>
+                            <p><strong>Checkout ID:</strong> {{ $checkoutId }}</p>
+                            <div class="text-center mt-3">
+                                <a href="{{ $whatsappUrl }}" target="_blank" class="btn btn-success btn-lg">
+                                    <i class="bi bi-whatsapp"></i> Konfirmasi Pembayaran via WhatsApp
+                                </a>
+                            </div>
+                        @endif
                     @else
                         <p>Anda memiliki {{ $cartItems->sum(fn($item) => max((int) $item->qty, 1)) }} eBook di keranjang.</p>
                         <ul class="list-group mb-3">
@@ -69,10 +81,37 @@
                         </div>
                         <form method="POST" action="{{ route('ebook.checkout.process') }}">
                             @csrf
-                            <button type="submit" class="btn btn-success">
-                                <i class="bi bi-credit-card"></i> Buat QRIS Pembayaran
+                            <div class="mb-3">
+                                <label class="form-label"><strong>Metode Pembayaran:</strong></label>
+                                <select id="payment_method" name="payment_method" class="form-select" required>
+                                    <option value="" disabled selected>Pilih Metode Pembayaran</option>
+                                    <option value="DANA">DANA</option>
+                                    <option value="Gopay">Gopay</option>
+                                    <option value="ShopeePay">ShopeePay</option>
+                                    <option value="Transfer Bank">Transfer Bank</option>
+                                    <option value="QRIS">QRIS</option>
+                                </select>
+                            </div>
+                            <div class="alert alert-info">
+                                <strong>Biaya Admin:</strong> Rp 100 - Rp 500 per transaksi.
+                            </div>
+                            <button type="submit" class="btn btn-success" id="checkout-submit-button" disabled>
+                                <i class="bi bi-check2-circle"></i> Buat Checkout dan Konfirmasi via WhatsApp
                             </button>
                         </form>
+                        <script>
+                            document.addEventListener('DOMContentLoaded', function () {
+                                const paymentMethodSelect = document.getElementById('payment_method');
+                                const submitButton = document.getElementById('checkout-submit-button');
+                                if (!paymentMethodSelect || !submitButton) {
+                                    return;
+                                }
+
+                                paymentMethodSelect.addEventListener('change', function () {
+                                    submitButton.disabled = paymentMethodSelect.value === '';
+                                });
+                            });
+                        </script>
                     @endif
                 @endif
             </div>
@@ -84,96 +123,11 @@
         <div class="card">
             <div class="card-body">
                 <h5>Informasi Pembayaran</h5>
-                <p>QRIS akan berlaku selama 5 menit sejak dibuat.</p>
-                <p>Setelah berhasil bayar, klik "Konfirmasi Pembayaran".</p>
-                <p>Jika pembayaran gagal atau kadaluarsa, lakukan checkout ulang.</p>
+                <p>Pilih opsi pembayaran di bawah tulisan <strong>Metode Pembayaran:</strong>.</p>
+                <p>Biaya Admin: Rp 100 - Rp 500 per transaksi.</p>
+                <p>Setelah checkout dibuat, konfirmasi pembayaran melalui tombol WhatsApp.</p>
             </div>
         </div>
     </div>
 </div>
 @endsection
-
-@if($pendingTransactions->isNotEmpty())
-@push('scripts')
-<script>
-(() => {
-    const timerEl = document.getElementById('qris-timer');
-    const qrImage = document.getElementById('checkout-qr-image');
-    const refreshUrl = @json(route('ebook.checkout.refresh-qr', $checkoutId));
-    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-    let expiresAt = new Date(@json(optional($pendingTransactions->first()->expires_at)->toIso8601String()));
-    let isRefreshing = false;
-
-    function formatTime(totalSeconds) {
-        const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
-        const seconds = (totalSeconds % 60).toString().padStart(2, '0');
-        return `${minutes}:${seconds}`;
-    }
-
-    function setTimerBadge(secondsLeft) {
-        timerEl.textContent = formatTime(Math.max(secondsLeft, 0));
-    }
-
-    async function refreshQr() {
-        if (isRefreshing) {
-            return;
-        }
-
-        isRefreshing = true;
-        timerEl.textContent = 'Memuat...';
-
-        try {
-            const response = await fetch(refreshUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': csrfToken,
-                    'Accept': 'application/json',
-                },
-                body: JSON.stringify({}),
-            });
-
-            if (!response.ok) {
-                throw new Error('Gagal refresh QR');
-            }
-
-            const data = await response.json();
-            expiresAt = new Date(data.expires_at);
-            qrImage.src = data.qr_url;
-
-            Swal.fire({
-                toast: true,
-                position: 'top-end',
-                icon: 'info',
-                title: 'QRIS diperbarui otomatis.',
-                showConfirmButton: false,
-                timer: 1800,
-            });
-        } catch (error) {
-            timerEl.textContent = '00:00';
-            Swal.fire({
-                icon: 'error',
-                title: 'Gagal refresh QR',
-                text: 'Silakan muat ulang halaman checkout.',
-            });
-        } finally {
-            isRefreshing = false;
-        }
-    }
-
-    setInterval(() => {
-        const now = new Date();
-        const secondsLeft = Math.floor((expiresAt.getTime() - now.getTime()) / 1000);
-
-        if (secondsLeft <= 0) {
-            setTimerBadge(0);
-            refreshQr();
-            return;
-        }
-
-        setTimerBadge(secondsLeft);
-    }, 1000);
-})();
-</script>
-@endpush
-@endif

@@ -150,6 +150,7 @@ class EbookController extends Controller
             $pendingTransactions = EbookTransaction::with('book')
                 ->where('user_id', auth()->id())
                 ->where('checkout_id', $checkoutId)
+                ->where('status', 'pending')
                 ->get();
         }
 
@@ -162,9 +163,59 @@ class EbookController extends Controller
                 ->get();
         }
 
+        $cartItems = Cart::with('book')
+            ->where('user_id', auth()->id())
+            ->whereHas('book')
+            ->get();
+
         if ($pendingTransactions->isNotEmpty()) {
-            $paidTransactions = $pendingTransactions->where('status', 'paid');
             $checkoutId = $pendingTransactions->first()->checkout_id;
+
+            $cartBookIds = $cartItems->pluck('book_id')->all();
+            $checkoutAdminFee = $pendingTransactions->first()->admin_fee ?: random_int(100, 500);
+            $checkoutPaymentMethod = $pendingTransactions->first()->payment_method;
+
+            // Remove any pending transactions that are no longer in the cart.
+            $pendingTransactions->whereNotIn('book_id', $cartBookIds)->each(function ($transaction) {
+                $transaction->delete();
+            });
+
+            foreach ($cartItems as $cartItem) {
+                $existingTransaction = $pendingTransactions->firstWhere('book_id', $cartItem->book_id);
+                $qty = max((int) $cartItem->qty, 1);
+                $amount = ($cartItem->book->price ?? 0) * $qty;
+
+                if ($existingTransaction) {
+                    if ($existingTransaction->qty !== $qty || $existingTransaction->amount != $amount) {
+                        $existingTransaction->update([
+                            'qty' => $qty,
+                            'amount' => $amount,
+                        ]);
+                    }
+                } else {
+                    EbookTransaction::create([
+                        'user_id' => auth()->id(),
+                        'book_id' => $cartItem->book_id,
+                        'invoice_code' => 'EB' . strtoupper(Str::random(10)),
+                        'checkout_id' => $checkoutId,
+                        'qr_code' => '',
+                        'payment_method' => $checkoutPaymentMethod,
+                        'admin_fee' => $checkoutAdminFee,
+                        'amount' => $amount,
+                        'qty' => $qty,
+                        'status' => 'pending',
+                        'expires_at' => null,
+                    ]);
+                }
+            }
+
+            $pendingTransactions = EbookTransaction::with('book')
+                ->where('user_id', auth()->id())
+                ->where('checkout_id', $checkoutId)
+                ->where('status', 'pending')
+                ->get();
+
+            $paidTransactions = $pendingTransactions->where('status', 'paid');
         } else {
             $paidTransactions = EbookTransaction::with('book')
                 ->where('user_id', auth()->id())
@@ -179,7 +230,43 @@ class EbookController extends Controller
             ->whereHas('book')
             ->get();
 
-        return view('ebook.checkout', compact('cartItems', 'pendingTransactions', 'paidTransactions', 'checkoutId'));
+        $checkoutFee = null;
+        $paymentMethod = null;
+        $whatsappUrl = null;
+        $requiresPaymentMethod = false;
+
+        if ($pendingTransactions->isNotEmpty()) {
+            $paymentMethod = $pendingTransactions->first()->payment_method;
+            $checkoutFee = $pendingTransactions->first()->admin_fee;
+
+            if ($checkoutFee === 0) {
+                $checkoutFee = random_int(100, 500);
+                $pendingTransactions->each(function ($transaction) use ($checkoutFee): void {
+                    $transaction->update(['admin_fee' => $checkoutFee]);
+                    $transaction->admin_fee = $checkoutFee;
+                });
+            }
+
+            if (! $paymentMethod) {
+                $requiresPaymentMethod = true;
+            }
+
+            if ($paymentMethod) {
+                $totalAmount = $pendingTransactions->sum('amount') + $checkoutFee;
+                $bookLines = $pendingTransactions->map(fn ($transaction, $index) => sprintf("%d. %s (Qty %d)", $index + 1, $transaction->book->title, $transaction->qty))->implode("\n");
+                $message = "Halo Admin, saya ingin konfirmasi pembayaran eBook.\n" .
+                    "Metode Pembayaran: {$paymentMethod}\n" .
+                    "Biaya Admin: Rp " . number_format($checkoutFee, 0, ',', '.') . "\n" .
+                    "Total Pembayaran: Rp " . number_format($totalAmount, 0, ',', '.') . "\n" .
+                    "Checkout ID: {$checkoutId}\n" .
+                    "Buku:\n{$bookLines}\n" .
+                    "Terima kasih.";
+
+                $whatsappUrl = 'https://wa.me/6283899912346?text=' . rawurlencode($message);
+            }
+        }
+
+        return view('ebook.checkout', compact('cartItems', 'pendingTransactions', 'paidTransactions', 'checkoutId', 'checkoutFee', 'paymentMethod', 'whatsappUrl', 'requiresPaymentMethod'));
     }
 
     public function processCheckout(Request $request): RedirectResponse
@@ -189,29 +276,49 @@ class EbookController extends Controller
             ->whereHas('book')
             ->get();
 
+        $allowedMethods = ['DANA', 'Gopay', 'ShopeePay', 'Transfer Bank', 'QRIS'];
+        $checkoutId = $request->input('checkout_id');
+        $paymentMethod = $request->input('payment_method');
+
+        if (! $paymentMethod || ! in_array($paymentMethod, $allowedMethods, true)) {
+            return redirect()->route('ebook.checkout')->with('error', 'Silakan pilih metode pembayaran yang valid.');
+        }
+
+        $pendingCheckout = collect();
+        if ($checkoutId) {
+            $pendingCheckout = EbookTransaction::with('book')
+                ->where('user_id', auth()->id())
+                ->where('checkout_id', $checkoutId)
+                ->where('status', 'pending')
+                ->get();
+        }
+
+        if ($pendingCheckout->isNotEmpty()) {
+            $adminFee = $pendingCheckout->first()->admin_fee ?: random_int(100, 500);
+
+            $pendingCheckout->each(function (EbookTransaction $transaction) use ($paymentMethod, $adminFee): void {
+                $transaction->update([
+                    'payment_method' => $paymentMethod,
+                    'admin_fee' => $adminFee,
+                ]);
+            });
+
+            return redirect()->route('ebook.checkout')
+                ->with('success', 'Metode pembayaran berhasil disimpan. Silakan lanjutkan konfirmasi pembayaran melalui WhatsApp.')
+                ->with('checkout_id', $checkoutId);
+        }
+
         if ($cartItems->isEmpty()) {
             return redirect()->route('ebook.cart')->with('error', 'Keranjang ebook Anda kosong.');
         }
 
         $checkoutId = 'EC' . strtoupper(Str::random(10));
-        $amountTotal = $cartItems->sum(fn ($item) => ($item->book->price ?? 0) * max((int) $item->qty, 1));
+        $adminFee = random_int(100, 500);
         $invoiceCodes = [];
 
         foreach ($cartItems as $item) {
             $invoiceCodes[] = 'EB' . strtoupper(Str::random(10));
         }
-
-        $qrContent = sprintf(
-            'QRIS|checkout:%s|amount:%s|user:%s|items:%s|expires:%s',
-            $checkoutId,
-            number_format($amountTotal, 2, '.', ''),
-            auth()->id(),
-            implode(',', array_map(fn ($code) => $code, $invoiceCodes)),
-            Carbon::now()->addMinutes(self::QR_EXPIRE_MINUTES)->timestamp
-        );
-
-        $qrFileName = "ebook_qr/{$checkoutId}.svg";
-        Storage::disk('public')->put($qrFileName, QrCode::format('svg')->size(300)->generate($qrContent));
 
         foreach ($cartItems as $index => $item) {
             $qty = max((int) $item->qty, 1);
@@ -220,16 +327,18 @@ class EbookController extends Controller
                 'book_id' => $item->book->id,
                 'invoice_code' => $invoiceCodes[$index],
                 'checkout_id' => $checkoutId,
-                'qr_code' => $qrFileName,
+                'qr_code' => '',
+                'payment_method' => $paymentMethod,
+                'admin_fee' => $adminFee,
                 'amount' => ($item->book->price ?? 0) * $qty,
                 'qty' => $qty,
                 'status' => 'pending',
-                'expires_at' => Carbon::now()->addMinutes(self::QR_EXPIRE_MINUTES),
+                'expires_at' => null,
             ]);
         }
 
         return redirect()->route('ebook.checkout')
-            ->with('success', 'QRIS berhasil dibuat. Silakan lakukan pembayaran.')
+            ->with('success', 'Checkout berhasil dibuat. Silakan lanjutkan konfirmasi pembayaran melalui WhatsApp.')
             ->with('checkout_id', $checkoutId);
     }
 
@@ -242,11 +351,6 @@ class EbookController extends Controller
 
         if ($transactions->isEmpty()) {
             return redirect()->route('ebook.checkout')->with('error', 'Transaksi tidak ditemukan.');
-        }
-
-        if ($transactions->first()->isExpired()) {
-            $transactions->each(fn ($transaction) => $transaction->update(['status' => 'expired']));
-            return redirect()->route('ebook.checkout')->with('error', 'QR Code sudah kedaluwarsa. Silakan lakukan checkout ulang.');
         }
 
         $transactions->each(fn ($transaction) => $transaction->update(['status' => 'paid']));
@@ -334,6 +438,56 @@ class EbookController extends Controller
         }
 
         return view('ebook.download', compact('book', 'payment'));
+    }
+
+    public function preview(Book $book): View
+    {
+        if (! $book->file_ebook) {
+            abort(404, 'Preview eBook tidak tersedia.');
+        }
+
+        $previewUrl = route('ebook.preview.file', $book) . '?v=' . $this->ebookFileVersion($book);
+
+        return view('ebook.preview', compact('book', 'previewUrl'));
+    }
+
+    public function previewFile(Request $request, Book $book): View|\Symfony\Component\HttpFoundation\BinaryFileResponse
+    {
+        if (! $request->header('X-PDF-Preview')) {
+            abort(404);
+        }
+
+        if (! $book->file_ebook) {
+            return redirect()->route('books.show', $book)->with('error', 'File eBook tidak tersedia.');
+        }
+
+        $absolutePath = $this->resolveEbookAbsolutePath($book->file_ebook);
+
+        if (! $absolutePath) {
+            return redirect()->route('books.show', $book)
+                ->with('error', 'File eBook tidak ditemukan di server.');
+        }
+
+        $ext = strtolower(pathinfo($book->file_ebook, PATHINFO_EXTENSION));
+
+        if ($ext !== 'pdf') {
+            return redirect()->route('books.show', $book)->with('error', 'Preview hanya tersedia untuk file PDF.');
+        }
+
+        $safeName = Str::slug($book->title) ?: 'ebook';
+
+        return response()->file($absolutePath, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="' . $safeName . '.pdf"',
+            'Cache-Control' => 'no-cache, no-store, must-revalidate',
+            'Pragma' => 'no-cache',
+            'Expires' => '0',
+        ]);
+    }
+
+    private function ebookFileVersion(Book $book): string
+    {
+        return md5($book->file_ebook . '|' . ($book->updated_at?->timestamp ?? now()->timestamp));
     }
 
     private function resolveEbookAbsolutePath(?string $storedPath): ?string

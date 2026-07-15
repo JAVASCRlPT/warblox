@@ -14,6 +14,8 @@ class EbookTransaction extends Model
         'invoice_code',
         'checkout_id',
         'qr_code',
+        'payment_method',
+        'admin_fee',
         'amount',
         'qty',
         'status',
@@ -22,6 +24,7 @@ class EbookTransaction extends Model
 
     protected $casts = [
         'amount' => 'decimal:2',
+        'admin_fee' => 'integer',
         'qty' => 'integer',
         'expires_at' => 'datetime',
     ];

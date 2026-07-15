@@ -59,12 +59,9 @@
                     <div><strong>Total Item:</strong> {{ $cartItems->sum(fn($item) => max((int) $item->qty, 1)) }}</div>
                     <div><strong>Total:</strong> Rp {{ number_format($cartItems->sum(fn($item) => ($item->book->price ?? 0) * max((int) $item->qty, 1)), 0, ',', '.') }}</div>
                 </div>
-                <form method="POST" action="{{ route('ebook.checkout.process') }}">
-                    @csrf
-                    <button type="submit" class="btn btn-success">
-                        <i class="bi bi-credit-card"></i> Checkout
-                    </button>
-                </form>
+                <a href="{{ route('ebook.checkout') }}" class="btn btn-success">
+                    <i class="bi bi-credit-card"></i> Lanjutkan ke Checkout
+                </a>
             </div>
         @endif
     </div>

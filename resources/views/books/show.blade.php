@@ -65,22 +65,40 @@
                                 </form>
                             @endif
                         </div>
+
+                        @if($book->file_ebook)
+                            <div class="text-center mt-3">
+                                <a href="{{ route('ebook.preview', $book) }}" target="_blank" class="btn btn-outline-secondary">
+                                    <i class="bi bi-eye"></i> Preview eBook
+                                </a>
+                            </div>
+                        @endif
+
                     @elseif(auth()->user()->isAdmin())
-                        <a href="{{ route('admin.books.edit', $book) }}" class="btn btn-warning w-100 mb-2">
-                            <i class="bi bi-pencil"></i> Edit
-                        </a>
-                        <form method="POST" action="{{ route('admin.books.destroy', $book) }}" style="display: inline; width: 100%;">
-                            @csrf
-                            @method('DELETE')
-                            <button type="submit" class="btn btn-danger w-100" onclick="return confirm('Hapus buku ini?')">
-                                <i class="bi bi-trash"></i> Hapus
-                            </button>
-                        </form>
+                        <div class="d-grid gap-2">
+                            <a href="{{ route('admin.books.edit', $book) }}" class="btn btn-warning w-100 mb-2">
+                                <i class="bi bi-pencil"></i> Edit
+                            </a>
+                            <form method="POST" action="{{ route('admin.books.destroy', $book) }}" style="display: block; width: 100%;">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="btn btn-danger w-100" onclick="return confirm('Hapus buku ini?')">
+                                    <i class="bi bi-trash"></i> Hapus
+                                </button>
+                            </form>
+                        </div>
                     @endif
                 @else
                     <a href="{{ route('login') }}" class="btn btn-primary w-100">
                         <i class="bi bi-bag-plus"></i> Pinjam Buku (Login)
                     </a>
+                    @if($book->file_ebook)
+                        <div class="text-center mt-3">
+                            <a href="{{ route('ebook.preview', $book) }}" target="_blank" class="btn btn-outline-secondary">
+                                <i class="bi bi-eye"></i> Preview eBook
+                            </a>
+                        </div>
+                    @endif
                 @endauth
 
                 <hr class="my-4">
@@ -135,6 +153,42 @@
                 </div>
             </div>
         </div>
+
+        @if($recommendedBooks->isNotEmpty())
+            <div class="card mt-4">
+                <div class="card-header" style="background: #f8f9fa; border-bottom: 2px solid #3498db;">
+                    <h5 class="card-title mb-0">Rekomendasi Buku Lainnya</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row gy-3">
+                        @foreach($recommendedBooks as $recommended)
+                            <div class="col-md-6">
+                                <div class="card h-100 shadow-sm">
+                                    <div class="card-body p-3 d-flex align-items-center gap-3">
+                                        <div class="recommendation-thumbnail flex-shrink-0" style="width: 70px; height: 100px; overflow: hidden; border-radius: 0.5rem; background: #f8f9fa; display: grid; place-items: center;">
+                                            @if($recommended->cover)
+                                                <img src="{{ asset('storage/' . $recommended->cover) }}" alt="Cover {{ $recommended->title }}" style="width: 100%; height: 100%; object-fit: cover;">
+                                            @else
+                                                <i class="bi bi-book" style="font-size: 1.5rem; color: #6c757d;"></i>
+                                            @endif
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <h6 class="card-title mb-2">{{ Str::limit($recommended->title, 60) }}</h6>
+                                            <p class="card-text mb-2 text-muted" style="font-size: 0.9rem;">
+                                                {{ $recommended->author }} — {{ $recommended->publisher }}
+                                            </p>
+                                            <a href="{{ route('books.show', $recommended) }}" class="btn btn-sm btn-outline-primary">
+                                                Lihat Buku
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            </div>
+        @endif
     </div>
 </div>
 

@@ -17,6 +17,8 @@ Route::get('/books', [BookController::class, 'index'])->name('books.index');
 Route::get('/books/{book}', [BookController::class, 'show'])->name('books.show');
 Route::redirect('/ebook/cart/', '/ebook/cart', 301);
 Route::get('/ebook/cart', [EbookController::class, 'cart'])->name('ebook.cart');
+Route::get('/ebook/preview/{book}', [EbookController::class, 'preview'])->name('ebook.preview');
+Route::get('/ebook/preview-file/{book}', [EbookController::class, 'previewFile'])->name('ebook.preview.file');
 
 // Protected routes (require authentication)
 Route::middleware('auth')->group(function () {
@@ -36,7 +38,6 @@ Route::middleware('auth')->group(function () {
     Route::post('/ebook/cart/{book}/remove', [EbookController::class, 'removeFromCart'])->name('ebook.cart.remove');
     Route::get('/ebook/checkout', [EbookController::class, 'checkout'])->name('ebook.checkout');
     Route::post('/ebook/checkout', [EbookController::class, 'processCheckout'])->name('ebook.checkout.process');
-    Route::post('/ebook/checkout/{checkoutId}/refresh-qr', [EbookController::class, 'refreshCheckoutQr'])->name('ebook.checkout.refresh-qr');
     Route::post('/ebook/confirm/{checkoutId}', [EbookController::class, 'confirmPayment'])->name('ebook.confirm');
     Route::get('/ebook/download/{book}', [EbookController::class, 'download'])->name('ebook.download');
     Route::get('/transactions', [TransactionController::class, 'history'])->name('transactions.history');
